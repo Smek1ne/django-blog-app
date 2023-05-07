@@ -1,37 +1,43 @@
 from django.shortcuts import render, get_object_or_404
-from .models import Post, Comment
-from django.core.paginator import \
-    Paginator, EmptyPage, PageNotAnInteger
+from .models import Post
+from django.core.paginator import (
+    Paginator,
+    EmptyPage,
+    PageNotAnInteger,
+)
 from django.views.generic import ListView
 from .forms import EmailPostForm, CommentForm
 from environs import Env
 from django.core.mail import send_mail
 from django.views.decorators.http import require_POST
+from taggit.models import Tag
+from django.db.models import Count
 
 env = Env()
-env.read_env()  # read .env file, if it exists
+env.read_env()  # read .env txt file, if it exists
 
 
-def post_list(request):
+def post_list(request, tag_slug=None):
     posts = Post.published.all()
+    tag = None
+    if tag_slug:
+        tag = get_object_or_404(Tag, slug=tag_slug)
+        posts = posts.filter(tags__in=[tag])
 
-    paginator = Paginator(posts, 3)  # 3 objects on one page
-
-    # number from get-parameter 'page' or 1
+    paginator = Paginator(posts, 3)
     requested_page = request.GET.get('page', 1)
 
     try:
-        # objects of <page_number> page
         posts_to_show = paginator.page(requested_page)
     except PageNotAnInteger:
         posts_to_show = paginator.page(1)
     except EmptyPage:
-        # objects from last page
         posts_to_show = paginator.page(paginator.num_pages)
 
     return render(request,
                   'blog/post/list.html',
-                  {'posts': posts_to_show})
+                  {'posts': posts_to_show,
+                   'tag': tag})
 
 
 def post_detail(request, year, month, day, post):
@@ -57,7 +63,8 @@ class PostListView(ListView):
 
 
 def post_share(request, post_id):
-    post = get_object_or_404(Post, id=post_id,
+    post = get_object_or_404(Post,
+                             id=post_id,
                              status=Post.Status.PUBLISHED)
     sent = False
 
@@ -90,7 +97,7 @@ def post_comment(request, post_id):
     comment = None
     form = CommentForm(data=request.POST)
 
-    if form.is_valid():
+    if form.is_valid():  # server side check
         comment = form.save(commit=False)
         comment.post = post
         comment.save()
