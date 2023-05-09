@@ -97,7 +97,6 @@ def post_comment(request, post_id):
 
     comment = None
     form = CommentForm(data=request.POST)
-
     if form.is_valid():  # server side check
         comment = form.save(commit=False)
         comment.post = post
