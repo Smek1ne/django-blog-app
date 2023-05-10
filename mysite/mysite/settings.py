@@ -30,6 +30,8 @@ DEBUG = env.bool('DEBUG', defualt=False)
 
 ALLOWED_HOSTS = ['127.0.0.1', ]
 
+SITE_ID = 1
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -41,6 +43,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'blog.apps.BlogConfig',
     'taggit',
+    'django.contrib.sites',
+    'django.contrib.sitemaps',
 ]
 
 MIDDLEWARE = [

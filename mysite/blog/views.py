@@ -8,6 +8,7 @@ from django.core.mail import send_mail
 from django.views.decorators.http import require_POST
 from taggit.models import Tag
 from django.db.models import Count
+from .services import get_similar_posts, get_posts_from_page, send_post_recommendation
 
 env = Env()
 env.read_env()  # read .env txt file, if it exists
@@ -23,42 +24,33 @@ def post_list(request, tag_slug=None):
 
     paginator = Paginator(posts, 3)
     requested_page = request.GET.get('page', 1)
-
-    try:
-        posts_to_show = paginator.page(requested_page)
-    except PageNotAnInteger:
-        posts_to_show = paginator.page(1)
-    except EmptyPage:
-        posts_to_show = paginator.page(paginator.num_pages)
+    posts_to_show = get_posts_from_page(paginator, requested_page)
 
     return render(request, 'blog/post/list.html',
                   {'posts': posts_to_show, 'tag': tag})
 
 
 def post_detail(request, year, month, day, post):
-    post = get_object_or_404(Post, slug=post,
-                             publish__year=year,
-                             publish__month=month,
-                             publish__day=day,
-                             status=Post.Status.PUBLISHED)
+    post = get_object_or_404(
+        Post, slug=post, status=Post.Status.PUBLISHED,
+        publish__year=year,
+        publish__month=month,
+        publish__day=day,
+    )
 
     comments = post.comments.filter(active=True)
     form = CommentForm()
+    similar_posts = get_similar_posts(post)
 
-    post_tags_ids = post.tags.values_list('id', flat=True)
-    similar_posts = (
-        Post.published
-        .filter(tags__in=post_tags_ids)
-        .exclude(id=post.id)
-        .annotate(same_tags=Count('tags' in post_tags_ids))
-        .order_by('-same_tags', '-publish')[:4]
+    return render(
+        request, 'blog/post/detail.html',
+        {
+            'post': post,
+            'comments': comments,
+            'form': form,
+            'similar_posts': similar_posts
+        }
     )
-
-    return render(request, 'blog/post/detail.html',
-                  {'post': post,
-                   'comments': comments,
-                   'form': form,
-                   'similar_posts': similar_posts})
 
 
 class PostListView(ListView):
@@ -75,15 +67,7 @@ def post_share(request, post_id):
     sent = False
     if request.method == 'POST':
         form = EmailPostForm(request.POST)
-
-        if form.is_valid():
-            cd: dict = form.cleaned_data
-            post_url = request.build_absolute_uri(post.get_absolute_url())
-            subj = f"{cd['name']} recommends you read {post.title}"
-            msg = f"Read {post.title} at {post_url}\n\n" \
-                  f"{cd['name']} comments: {cd['comments']}"
-            send_mail(subj, msg, cd['email'], [cd['to']])
-            sent = True
+        sent: bool = send_post_recommendation(request, form, post)
     else:
         form = EmailPostForm()
 
