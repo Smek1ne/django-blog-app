@@ -6,6 +6,7 @@ from taggit.managers import TaggableManager
 
 
 class PublishedManager(models.Manager):
+    """Manager for published posts."""
     def get_queryset(self):
         return super().get_queryset().filter(
             status=Post.Status.PUBLISHED
@@ -13,6 +14,7 @@ class PublishedManager(models.Manager):
 
 
 class Post(models.Model):
+    """It's a blog post."""
     class Status(models.TextChoices):
         DRAFT = 'DF', 'Draft'
         PUBLISHED = 'PB', 'Published'
@@ -52,6 +54,7 @@ class Post(models.Model):
 
 
 class Comment(models.Model):
+    """It's a post comment."""
     name = models.CharField(max_length=80)
     body = models.TextField(max_length=500)
     email = models.EmailField()
