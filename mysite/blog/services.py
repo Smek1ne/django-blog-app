@@ -4,9 +4,10 @@ from django.core.mail import send_mail
 from django.core.paginator import EmptyPage, PageNotAnInteger
 from django.db.models import Count
 from django.forms import Form
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpHeaders
 
 from .models import Post as PostModel
+from .forms import SearchForm
 
 
 def get_similar_posts(post):
@@ -46,3 +47,13 @@ def send_post_recommendation(request, form: Form, post: PostModel) -> bool:
         send_mail(subject, message, cd['email'], [cd['to']])
         return True
     return False
+
+
+def retrieve_search_query(query_params: HttpHeaders):
+    """Takes a query string from search form if valid and returns it"""
+    query = None
+    if 'query' in query_params:
+        form = SearchForm(query_params)
+        if form.is_valid():
+            query = form.cleaned_data['query']
+    return query

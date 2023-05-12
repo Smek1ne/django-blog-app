@@ -3,10 +3,12 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from django.urls import reverse
 from taggit.managers import TaggableManager
+from django.contrib.postgres.search import SearchVector
 
 
-class PublishedManager(models.Manager):
+class PublishedPostManager(models.Manager):
     """Manager for published posts."""
+
     def get_queryset(self):
         return super().get_queryset().filter(
             status=Post.Status.PUBLISHED
@@ -15,6 +17,7 @@ class PublishedManager(models.Manager):
 
 class Post(models.Model):
     """It's a blog post."""
+
     class Status(models.TextChoices):
         DRAFT = 'DF', 'Draft'
         PUBLISHED = 'PB', 'Published'
@@ -34,7 +37,7 @@ class Post(models.Model):
                               default=Status.DRAFT)
     tags = TaggableManager()
     objects = models.Manager()
-    published = PublishedManager()
+    published = PublishedPostManager()
 
     class Meta:
         ordering = ['-publish']
@@ -54,7 +57,8 @@ class Post(models.Model):
 
 
 class Comment(models.Model):
-    """It's a post comment."""
+    """Post comment."""
+
     name = models.CharField(max_length=80)
     body = models.TextField(max_length=500)
     email = models.EmailField()
@@ -62,7 +66,8 @@ class Comment(models.Model):
     updated = models.DateTimeField(auto_now=True)
     active = models.BooleanField(default=True)
     post = models.ForeignKey(
-        Post, on_delete=models.CASCADE, related_name='comments')
+        Post, on_delete=models.CASCADE, related_name='comments', null=True
+    )
 
     class Meta:
         ordering = ['created']
@@ -70,5 +75,5 @@ class Comment(models.Model):
             models.Index(fields=['created']),
         ]
 
-        def __str__(self):
-            return f'Comment by {self.name} on {self.post}'
+    def __str__(self):
+        return f'Comment by {self.name} on {self.post}'
